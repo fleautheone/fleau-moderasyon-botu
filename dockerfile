@@ -1,32 +1,40 @@
-# Base image
-FROM node:18-alpine
+# ================= BASE =================
+FROM node:20-slim
 
-# Set the working directory in the container
+# ================= METADATA =================
+LABEL maintainer="your-name"
+LABEL version="1.0"
+LABEL description="Discord Bot (Production)"
+
+# ================= APP DIR =================
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to the container
+# ================= DEPENDENCIES =================
+
+# sadece package dosyalarını kopyala (cache için önemli)
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev
+# production dependency install
+RUN npm ci --omit=dev && npm cache clean --force
 
-# Bundle rest of the source code
+# ================= COPY SOURCE =================
 COPY . .
 
-# Environment variables
-ENV BOT_TOKEN=
-ENV MONGO_CONNECTION=
-ENV ERROR_LOGS=
-ENV JOIN_LEAVE_LOGS=
-ENV BOT_SECRET=
-ENV SESSION_PASSWORD=
-ENV WEATHERSTACK_KEY=
-ENV STRANGE_API_KEY=
-ENV SPOTIFY_CLIENT_ID=
-ENV SPOTIFY_CLIENT_SECRET=
+# ================= SECURITY =================
 
-# Expose port 8080 for dashboard
+# non-root user oluştur
+RUN useradd -m botuser
+USER botuser
+
+# ================= ENV =================
+ENV NODE_ENV=production
+
+# ================= PORT =================
 EXPOSE 8080
 
-# Define the command to run your Node.js application
-CMD [ "node", "bot.js" ]
+# ================= HEALTHCHECK =================
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD node -e "process.exit(0)" || exit 1
+
+# ================= START =================
+CMD ["node", "bot.js"]

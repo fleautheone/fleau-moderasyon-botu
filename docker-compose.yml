@@ -1,38 +1,85 @@
-version: "4"
+version: "3.9"
 
 services:
-  discord-js-bot:
+  bot:
     image: saitejamadha/discord-js-bot:5.4.0
     container_name: discord-js-bot
     restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      - NODE_ENV=production
+
+    depends_on:
+      - mongodb
+      - lavalink
+
     networks:
       - discord-js-net
+
     volumes:
       - ./config.js:/usr/src/app/config.js:ro
       - ./logs:/usr/src/app/logs:rw
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   lavalink:
     image: fredboat/lavalink:dev
     container_name: discord-js-lavalink
     hostname: lavalink
     restart: unless-stopped
+
     networks:
       - discord-js-net
+
     volumes:
       - ./application.yml:/opt/Lavalink/application.yml:ro
 
+    ports:
+      - "2333:2333"
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2333/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   mongodb:
-    image: mongo:latest
+    image: mongo:7
     container_name: discord-js-mongodb
     restart: unless-stopped
+
     networks:
       - discord-js-net
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=supersecretpassword
+
+    env_file:
+      - .env
+
     volumes:
-      - ./data:/data/db:rw
+      - ./data:/data/db
+
+    ports:
+      - "27017:27017"
+
+    command: ["--auth"]
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 networks:
   discord-js-net:
-    name: discord-js-net
+    driver: bridge
